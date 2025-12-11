@@ -1,39 +1,55 @@
 <?php
-if (isset($_COOKIE['lang'])) {
-    $lang = $_COOKIE['lang'];
-} else {
-    $lang = 'ru';
+include('db_connect.php');
+include('student_functions.php');
+
+$error_message = $success_message = "";
+$email_search = isset($_GET['email_search']) ? $_GET['email_search'] : "";
+$edit_id = isset($_GET['edit_id']) ? $_GET['edit_id'] : null;
+$edit_full_name = "";
+$edit_email = "";
+$edit_group_name = "";
+
+// Если редактируем студента
+if ($edit_id) {
+    // Получаем данные студента для редактирования
+    $sql = "SELECT full_name, email, group_name FROM students WHERE id = $edit_id";
+    $result = $conn->query($sql);
+    if ($result->num_rows > 0) {
+        $student = $result->fetch_assoc();
+        $edit_full_name = $student['full_name'];
+        $edit_email = $student['email'];
+        $edit_group_name = $student['group_name'];
+    } else {
+        $error_message = "Студент не найден.";
+    }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['lang'])) {
-    $lang = $_POST['lang'];
-    setcookie("lang", $lang, time() + 60 * 60 * 24 * 30, "/", "", true, true);
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
+// Обработка добавления нового студента
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_student'])) {
+    $full_name = $_POST['full_name'];
+    $email = $_POST['email'];
+    $group_name = $_POST['group_name'];
+    $success_message = add_student($conn, $full_name, $email, $group_name);
 }
 
-$texts = [
-    'ru' => ['title' => 'Добро пожаловать!', 'select' => 'Выберите язык', 'cart' => 'Корзина покупок'],
-    'en' => ['title' => 'Welcome!', 'select' => 'Choose language', 'cart' => 'Shopping Cart']
-];
+// Обработка редактирования студента
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['edit_student'])) {
+    $edit_id = $_POST['edit_id'];
+    $full_name = $_POST['full_name'];
+    $email = $_POST['email'];
+    $group_name = $_POST['group_name'];
+    $success_message = edit_student($conn, $edit_id, $full_name, $email, $group_name);
+}
+
+// Обработка удаления студента
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_student_id'])) {
+    $delete_id = $_POST['delete_student_id'];
+    $success_message = delete_student($conn, $delete_id);
+}
+
+// Получение списка студентов
+$students_result = search_students($conn, $email_search);
+
+// Подключаем шаблон HTML
+include('template.php');
 ?>
-<!DOCTYPE html>
-<html lang="<?= htmlspecialchars($lang) ?>">
-<head>
-    <meta charset="UTF-8">
-    <title><?= $texts[$lang]['title'] ?></title>
-</head>
-<body>
-    <h1><?= $texts[$lang]['title'] ?></h1>
-    <form method="post">
-        <label><?= $texts[$lang]['select'] ?>:</label>
-        <select name="lang">
-            <option value="ru" <?= $lang == 'ru' ? 'selected' : '' ?>>Русский</option>
-            <option value="en" <?= $lang == 'en' ? 'selected' : '' ?>>English</option>
-        </select>
-        <button type="submit">OK</button>
-    </form>
-    <p><a href="cart.php"><?= $texts[$lang]['cart'] ?></a></p>
-</body>
-</html>
-
